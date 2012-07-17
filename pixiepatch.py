@@ -2,6 +2,7 @@ from os import stat, link, unlink, walk, makedirs, sep
 from os.path import join, dirname, exists, relpath
 import simplejson
 import hashlib
+import re
 
 from compressor import Compressor
 from signer import Signer, VerificationError
@@ -16,9 +17,15 @@ class PixiePatch(object):
         self.signer = signer or Signer()
         self.reader = reader or Reader()
         self.archive_handlers = {}
+        self.ignore = []
 
     def register_archive_handler(self, extension, handler):
         self.archive_handlers[extension] = handler
+
+    def register_ignore_pattern(self, pattern):
+        if isinstance(pattern, basestring):
+            pattern = re.compile(pattern)
+        self.ignore.append(pattern)
 
     def make_distribution(self, version, source_dir, target_dir, previous_target_dir=None):
         previous_manifest = None
@@ -184,7 +191,7 @@ class PixiePatch(object):
 
         # delete entries
         for name in patch_plan['delete']:
-            handler, archive, member = self.get_file_handler(directory, name)
+            handler, archive, member = self.__get_file_handler(directory, name)
             handler.delete(archive, member)
 
         # download new entries
@@ -193,12 +200,12 @@ class PixiePatch(object):
             contents = self.compressor.decompress(contents)
             if hashlib.sha256(contents).hexdigest() != manifest['files'][name]['hash']:
                 raise VerificationError()
-            handler, archive, member = self.get_file_handler(directory, name)
+            handler, archive, member = self.__get_file_handler(directory, name)
             handler.set(archive, member, contents)
 
         # download patches
         for name, versions in patch_plan['patch']:
-            handler, archive, member = self.get_file_handler(directory, name)
+            handler, archive, member = self.__get_file_handler(directory, name)
             contents = handler.get(archive, member)
 
             for v in versions:
@@ -219,14 +226,23 @@ class PixiePatch(object):
                 for ext, handler in self.archive_handlers.items():
                     if name.endswith(ext):
                         for member, contents in handler.walk(name):
-                            yield join(rel_name, member), contents
+                            member_name = join(rel_name, member)
+                            if not self.__ignore(member_name):
+                                yield member_name, contents
                         break
                 else:
-                    with open(name, 'r') as f:
-                        contents = f.read()
-                    yield rel_name, contents
+                    if not self.__ignore(rel_name):
+                        with open(name, 'r') as f:
+                            contents = f.read()
+                        yield rel_name, contents
 
-    def get_file_handler(self, directory, name):
+    def __ignore(self, name):
+        for pattern in self.ignore:
+            if pattern.match(name):
+                return True
+        return False
+
+    def __get_file_handler(self, directory, name):
         parts = name.split(sep)
         for i, part in enumerate(parts):
             for ext, handler in self.archive_handlers.items():

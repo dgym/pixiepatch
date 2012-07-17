@@ -8,7 +8,9 @@ to a local installation.
 Clients can check a server for available updates.
 Clients can calculate which files need to be downloaded, and the download size.
 Clients can verify downloaded files and write updates to the file system.
-Servers use entirely static content - a basic web server is ideal.
+Servers use entirely static content - a web server is ideal.
+Files can be ignored using regular expressions. Ignored files do not get
+deleted on the client.
 
 == Configurable Features ==
 
@@ -56,14 +58,14 @@ compressed versions of each file instead.
 If authentiction is enabled the manifest is signed so clients can verify its
 contents and therefor every file in the distribution.
 
-If deltas are enabled and a previoud distribution is provided then diffs of
+If deltas are enabled and a previous distribution is provided then diffs of
 changed files are also saved in the new distribution. These are also compressed
 if compression is enabled.
 
 = Patching =
 
 When a client detects a new version it downloads the manifest and calculates
-which files are our of date and thus need to be downloaded. This information
+which files are out of date and thus need to be downloaded. This information
 can be made available to the user so they can decide if they want to continue.
 
 If deltas are enabled the client will determine if downloading a series of

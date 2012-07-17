@@ -73,10 +73,11 @@ class TestPlainSingle(Base):
                 assert f.read() == 'test\n' * 100
 
 
-class TestPlainDelta(Base):
+class TestPlainMulti(Base):
     def setUp(self):
         Base.setUp(self)
         self.pp = PixiePatch()
+        self.pp.register_ignore_pattern('^c$')
         with open(join(self.sources[0], 'a'), 'w') as f:
             f.write('test\n' * 100)
         with open(join(self.sources[0], 'b'), 'w') as f:
@@ -85,6 +86,8 @@ class TestPlainDelta(Base):
             f.write('test\n' * 100)
         with open(join(self.sources[1], 'b'), 'w') as f:
             f.write('v2\n' * 100)
+        with open(join(self.sources[1], 'c'), 'w') as f:
+            f.write('ignored\n')
         self.pp.make_distribution('1', self.sources[0], self.dists[0])
         self.pp.make_distribution('2', self.sources[1], self.dists[1], self.dists[0])
 

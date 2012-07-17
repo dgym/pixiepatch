@@ -47,6 +47,7 @@ class TestPatch(Base):
     def setUp(self):
         Base.setUp(self)
         self.pp = PixiePatch(differ=TextDiffer(), reader=URLReader(self.dir + '/dist-'))
+        self.pp.register_ignore_pattern('^ignore$')
 
         with open(join(self.sources[0], 'a'), 'w') as f:
             f.write('test\n' * 100)
@@ -119,6 +120,16 @@ class TestPatch(Base):
                 assert chain == ['2', '3']
             else:
                 assert chain == ['2']
+
+    def test_ignore(self):
+        # version 1 -> 2
+        with open(join(self.sources[0], 'ignore'), 'w') as f:
+            f.write('ignore\n')
+        client_manifest = self.pp.create_client_manifest('1', self.sources[0])
+        plan = self.pp.get_patch_plan(client_manifest, '2')
+        assert set(plan['download']) == set(['b', 'f'])
+        assert set(plan['delete']) == set(['d'])
+        assert set([p[0] for p in plan['patch']]) == set(['c', 'e'])
 
     def test_patch_1_to_2(self):
         client_manifest = self.pp.create_client_manifest('1', self.sources[0])
