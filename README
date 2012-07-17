@@ -1,0 +1,76 @@
+PixiePatch - an application update library.
+
+PixiePatch provides tools to pull updates from a central server and apply them
+to a local installation.
+
+== Basic Features ==
+
+Clients can check a server for available updates.
+Clients can calculate which files need to be downloaded, and the download size.
+Clients can verify downloaded files and write updates to the file system.
+Servers use entirely static content - a basic web server is ideal.
+
+== Configurable Features ==
+
+Custom client/server transports can be defined. The included URLReader class
+provides both file and HTTP support.
+
+Compression can be enabled by defining a custom Compressor, or alternatively
+using the BZ2Compressor class provided. If compression is enabled it is used
+for both application files and manifest files (used by the client during
+updates).
+
+Delta patched can be enabled by defining a custom Differ. When available the
+client will download and apply a chain of deltas if doing so is more
+efficient than downloading the whole file.
+
+Authenticaion can be enabled by defining a custom Signer. If a Signer is
+used then manifest files are signed by the server and verified by the
+clients before being used. Manifest files list the SHA-256 hash of every
+file in the distribution (and hashes are checked before writing updates)
+so signing this hash list means that the whole distribution can be verfied.
+
+Archive management can be configured so the contents of archives (e.g. zip
+files) can be managed individually. The provided ZIPHandler can be used
+to handle zip files, and custom Handlers can be used as well.
+
+== How it works ==
+
+= Creating distributions =
+
+Given a directory containing a complete application installation (e.g.
+executables, libraries and data files - possibly in a directory tree
+and including archives) PixiePatch is used to generate a distribution
+which is a separate directory ready to be served by a web server or
+other transport.
+
+The distribution directory consists of a copy of every file in the
+source directory as well as a version file and a manifest file. The
+version file is used by clients to check for updates without downloading the
+sometimes large manifest file. The manifest file contains a list of every file
+in the distribution along with its hash and download statistics.
+
+If compression is enabled the distribution directory is populated with
+compressed versions of each file instead.
+
+If authentiction is enabled the manifest is signed so clients can verify its
+contents and therefor every file in the distribution.
+
+If deltas are enabled and a previoud distribution is provided then diffs of
+changed files are also saved in the new distribution. These are also compressed
+if compression is enabled.
+
+= Patching =
+
+When a client detects a new version it downloads the manifest and calculates
+which files are our of date and thus need to be downloaded. This information
+can be made available to the user so they can decide if they want to continue.
+
+If deltas are enabled the client will determine if downloading a series of
+patches would require less data than fetching the complete new version of a
+file.
+
+When the client has calculated what needs to be downloaded it can then do so
+and apply all the changes. Hashes are checked before writing new files. When
+this is complete the client's directory will be the same as the original
+application installation and PixiePatch's work is done.
