@@ -67,7 +67,7 @@ class PixiePatch(object):
 
                         compressed = self.compressor.compress(contents)
                         if size < len(compressed):
-                            with open(delta_name, 'w') as f:
+                            with open(delta_name, 'wb') as f:
                                 f.write(delta_contents)
                             delta = {'version': version, 'size': size, 'old_hash': last['hash'], 'old_version': last['delta'] and last['delta']['version']}
                     except DiffError:
@@ -78,7 +78,7 @@ class PixiePatch(object):
                 if compressed is None:
                     compressed = self.compressor.compress(contents)
                 compressed_size = len(compressed)
-                with open(dest_name, 'w') as f:
+                with open(dest_name, 'wb') as f:
                     f.write(compressed)
 
                 if delta and delta['size'] >= compressed_size:
@@ -94,10 +94,10 @@ class PixiePatch(object):
         manifest['files'] = entries
         manifest = simplejson.dumps(manifest, sort_keys=True, indent=4) + '\n'
 
-        with open(join(target_dir, self.compressor.add_extension('manifest')), 'w') as f:
+        with open(join(target_dir, self.compressor.add_extension('manifest')), 'wb') as f:
             f.write(self.compressor.compress(self.signer.sign(manifest)))
 
-        with open(join(target_dir, 'version'), 'w') as f:
+        with open(join(target_dir, 'version'), 'wb') as f:
             f.write(version + '\n')
 
     def parse_manifest(self, manifest):
@@ -267,7 +267,7 @@ class DummyHandler(object):
 
     def set(self, archive, name, contents, mode=None):
         ensure_dir(dirname(name))
-        with open(name, 'w') as f:
+        with open(name, 'wb') as f:
             f.write(contents)
         if mode is not None:
             os.chmod(name, mode)

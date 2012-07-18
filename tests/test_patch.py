@@ -48,7 +48,7 @@ class TextDiffer(Differ):
 class TestPatch(Base):
     def setUp(self):
         Base.setUp(self)
-        self.pp = PixiePatch(differ=TextDiffer(), reader=URLReader(self.dir + '/dist-'))
+        self.pp = PixiePatch(differ=TextDiffer(), reader=URLReader('file://' + self.dir + '/dist-'))
         self.pp.register_ignore_pattern('^ignore$')
 
         with open(join(self.sources[0], 'a'), 'w') as f:
@@ -167,7 +167,7 @@ class TestPatch(Base):
 class TestZipPatch(Base):
     def setUp(self):
         Base.setUp(self)
-        self.pp = PixiePatch(differ=TextDiffer(), reader=URLReader(self.dir + '/dist-'))
+        self.pp = PixiePatch(differ=TextDiffer(), reader=URLReader('file://' + self.dir + '/dist-'))
         self.pp.register_archive_handler('.zip', ZIPHandler())
 
         with ZipFile(join(self.sources[0], 'a.zip'), 'w') as f:
