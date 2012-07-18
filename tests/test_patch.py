@@ -1,5 +1,7 @@
-from os import mkdir, stat
+import os
+from os import mkdir, chmod
 from os.path import join, exists
+import stat
 import tempfile
 import shutil
 import sys
@@ -74,6 +76,7 @@ class TestPatch(Base):
             f.write('v2\n')
         with open(join(self.sources[1], 'f'), 'w') as f:
             f.write('test\n' * 100)
+        chmod(join(self.sources[1], 'f'), stat.S_IREAD)
 
         with open(join(self.sources[2], 'a'), 'w') as f:
             f.write('test\n' * 100)
@@ -151,6 +154,14 @@ class TestPatch(Base):
         self.pp.patch(self.sources[0], plan)
         diff = Popen(['diff', '-ru', self.sources[0], self.sources[2]], stdout=PIPE).communicate()[0]
         self.assertEqual(diff, '')
+
+    def test_mode(self):
+        # version 1 -> 2
+        client_manifest = self.pp.create_client_manifest('1', self.sources[0])
+        plan = self.pp.get_patch_plan(client_manifest, '2')
+        self.pp.patch(self.sources[0], plan)
+        stats = os.stat(join(self.sources[0], 'f'))
+        assert stats.st_mode & 0777 == stat.S_IREAD
 
 
 class TestZipPatch(Base):

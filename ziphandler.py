@@ -10,13 +10,13 @@ class ZIPHandler(object):
             for name in zip.namelist():
                 if not name.endswith('/'):
                     contents = zip.read(name)
-                    yield name, contents
+                    yield name, contents, None
 
     def get(self, archive, name):
         with ZipFile(archive, 'r') as zip:
             return zip.read(name)
 
-    def set(self, archive, name, contents):
+    def set(self, archive, name, contents, mode=None):
         d = os.path.dirname(archive)
         if d and not os.path.exists(d):
             os.makedirs(d)

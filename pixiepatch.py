@@ -1,5 +1,7 @@
-from os import stat, link, unlink, walk, makedirs, sep
+import os
+from os import stat, unlink, walk, makedirs, sep
 from os.path import join, dirname, exists, relpath
+import shutil
 import simplejson
 import hashlib
 import re
@@ -34,7 +36,7 @@ class PixiePatch(object):
                 previous_manifest = self.parse_manifest(f.read())
 
         entries = {}
-        for rel_name, contents in self.__walk(source_dir):
+        for rel_name, contents, mode in self.__walk(source_dir):
             hash = hashlib.sha256(contents).hexdigest()
             dest_name = self.compressor.add_extension(join(target_dir, rel_name))
             delta_name = self.differ.add_extension(join(target_dir, rel_name))
@@ -82,7 +84,10 @@ class PixiePatch(object):
                 if delta and delta['size'] >= compressed_size:
                     delta = None
 
-            entries[rel_name] = {'hash': hash, 'dlsize': compressed_size, 'delta': delta}
+            entry = {'hash': hash, 'dlsize': compressed_size, 'delta': delta}
+            if mode is not None:
+                entry['mode'] = mode
+            entries[netpath(rel_name)] = entry
 
         manifest = {}
         manifest['version'] = version
@@ -106,9 +111,9 @@ class PixiePatch(object):
 
     def create_client_manifest(self, version, source_dir):
         entries = {}
-        for rel_name, contents in self.__walk(source_dir):
+        for rel_name, contents, mode in self.__walk(source_dir):
             hash = hashlib.sha256(contents).hexdigest()
-            entries[rel_name] = {'hash': hash}
+            entries[netpath(rel_name)] = {'hash': hash}
 
         manifest = {}
         manifest['version'] = version
@@ -184,14 +189,13 @@ class PixiePatch(object):
 
         return {'delete': delete, 'download': download, 'patch': patch, 'size': size, 'manifest': target_manifest}
 
-
     def patch(self, directory, patch_plan):
         manifest = patch_plan['manifest']
         version = manifest['version']
 
         # delete entries
         for name in patch_plan['delete']:
-            handler, archive, member = self.__get_file_handler(directory, name)
+            handler, archive, member = self.__get_file_handler(directory, hostpath(name))
             handler.delete(archive, member)
 
         # download new entries
@@ -200,12 +204,12 @@ class PixiePatch(object):
             contents = self.compressor.decompress(contents)
             if hashlib.sha256(contents).hexdigest() != manifest['files'][name]['hash']:
                 raise VerificationError()
-            handler, archive, member = self.__get_file_handler(directory, name)
-            handler.set(archive, member, contents)
+            handler, archive, member = self.__get_file_handler(directory, hostpath(name))
+            handler.set(archive, member, contents, manifest['files'][name].get('mode'))
 
         # download patches
         for name, versions in patch_plan['patch']:
-            handler, archive, member = self.__get_file_handler(directory, name)
+            handler, archive, member = self.__get_file_handler(directory, hostpath(name))
             contents = handler.get(archive, member)
 
             for v in versions:
@@ -215,7 +219,7 @@ class PixiePatch(object):
 
             if hashlib.sha256(contents).hexdigest() != manifest['files'][name]['hash']:
                 raise VerificationError()
-            handler.set(archive, member, contents)
+            handler.set(archive, member, contents, manifest['files'][name].get('mode'))
 
     def __walk(self, source_dir):
         for root, dirs, files in walk(source_dir):
@@ -225,16 +229,16 @@ class PixiePatch(object):
 
                 for ext, handler in self.archive_handlers.items():
                     if name.endswith(ext):
-                        for member, contents in handler.walk(name):
+                        for member, contents, mode in handler.walk(name):
                             member_name = join(rel_name, member)
                             if not self.__ignore(member_name):
-                                yield member_name, contents
+                                yield member_name, contents, mode
                         break
                 else:
                     if not self.__ignore(rel_name):
                         with open(name, 'r') as f:
                             contents = f.read()
-                        yield rel_name, contents
+                        yield rel_name, contents, stat(name).st_mode
 
     def __ignore(self, name):
         for pattern in self.ignore:
@@ -261,10 +265,34 @@ class DummyHandler(object):
         with open(name, 'r') as f:
             return f.read()
 
-    def set(self, archive, name, contents):
+    def set(self, archive, name, contents, mode=None):
         ensure_dir(dirname(name))
         with open(name, 'w') as f:
             f.write(contents)
+        if mode is not None:
+            os.chmod(name, mode)
 
     def delete(self, archive, name):
         unlink(name)
+
+
+if 'link' in dir(os):
+    link = os.link
+else:
+    def link(src, dst):
+        shutil.copyfile(src, dst)
+        shutil.copymode(src, dst)
+
+
+if sep == '/':
+    def netpath(path):
+        return path
+
+    def hostpath(path):
+        return path
+else:
+    def netpath(path):
+        return path.replace(sep, '/')
+
+    def hostpath(path):
+        return path.replace('/', sep)
