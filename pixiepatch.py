@@ -32,7 +32,7 @@ class PixiePatch(object):
     def make_distribution(self, version, source_dir, target_dir, previous_target_dir=None):
         previous_manifest = None
         if previous_target_dir:
-            with open(join(previous_target_dir, self.compressor.add_extension('manifest')), 'r') as f:
+            with open(join(previous_target_dir, self.compressor.add_extension('manifest')), 'rb') as f:
                 previous_manifest = self.parse_manifest(f.read())
 
         entries = {}
@@ -60,7 +60,7 @@ class PixiePatch(object):
                 elif last:
                     # create a diff
                     try:
-                        with open(previous_name, 'r') as f:
+                        with open(previous_name, 'rb') as f:
                             previous_contents = self.compressor.decompress(f.read())
                         delta_contents = self.compressor.compress(self.differ.diff(previous_contents, contents))
                         size = len(delta_contents)
@@ -106,7 +106,7 @@ class PixiePatch(object):
         return simplejson.loads(message)
 
     def read_manifest(self, filename):
-        with open(filename, 'r') as f:
+        with open(filename, 'rb') as f:
             return self.parse_manifest(f.read())
 
     def create_client_manifest(self, version, source_dir):
@@ -236,7 +236,7 @@ class PixiePatch(object):
                         break
                 else:
                     if not self.__ignore(rel_name):
-                        with open(name, 'r') as f:
+                        with open(name, 'rb') as f:
                             contents = f.read()
                         yield rel_name, contents, stat(name).st_mode
 
@@ -262,7 +262,7 @@ def ensure_dir(name):
 
 class DummyHandler(object):
     def get(self, archive, name):
-        with open(name, 'r') as f:
+        with open(name, 'rb') as f:
             return f.read()
 
     def set(self, archive, name, contents, mode=None):
