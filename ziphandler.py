@@ -22,7 +22,7 @@ class ZIPHandler(object):
             os.makedirs(d)
 
         with ZipFile(archive, 'a') as zip:
-            zip.writestr(name, contents)
+            zip.writestr(name, str(contents))
 
     def delete(self, archive, name):
         fd, tmp = tempfile.mkstemp()
